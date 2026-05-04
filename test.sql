@@ -1,0 +1,4 @@
+-- Création du lien vers le site de Pau
+CREATE DATABASE LINK link_pau
+CONNECT TO system IDENTIFIED BY OracleHomeUser1
+USING '(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle_pau)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=FREEPDB1)))';

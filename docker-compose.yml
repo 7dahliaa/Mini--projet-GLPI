@@ -1,0 +1,26 @@
+services:
+  # Site Cergy - Port externe 1523
+  db_cergy:
+    image: gvenzl/oracle-free:latest
+    container_name: oracle_cergy
+    ports:
+      - "1523:1521"
+    environment:
+      - ORACLE_PASSWORD=OracleHomeUser1
+    networks:
+      - cine_net
+
+  # Site Pau - Port externe 1522
+  db_pau:
+    image: gvenzl/oracle-free:latest
+    container_name: oracle_pau
+    ports:
+      - "1522:1521"
+    environment:
+      - ORACLE_PASSWORD=OracleHomeUser1
+    networks:
+      - cine_net
+
+networks:
+  cine_net:
+    driver: bridge
