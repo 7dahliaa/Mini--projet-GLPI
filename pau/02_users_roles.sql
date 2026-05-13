@@ -1,0 +1,62 @@
+-- =============================================================================
+-- FICHIER  : pau/02_users_roles.sql
+-- INSTANCE : pau_db (Spoke)
+-- NOTION   : Utilisateurs & Rôles Oracle — version Pau
+-- NOTE     : APPLI_GLPI doit avoir le même mot de passe que sur Cergy
+--            car c'est ce compte que le DBLink de Cergy utilise pour se connecter
+-- =============================================================================
+
+BEGIN
+  FOR r IN (SELECT role_name FROM dba_roles
+            WHERE  role_name IN ('ROLE_TECH_PAU','ROLE_APPLI_GLPI','ROLE_AUDITEUR_PAU')) LOOP
+    EXECUTE IMMEDIATE 'DROP ROLE ' || r.role_name;
+  END LOOP;
+END;
+/
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+CREATE ROLE ROLE_TECH_PAU;
+CREATE ROLE ROLE_APPLI_GLPI;
+CREATE ROLE ROLE_AUDITEUR_PAU;
+
+GRANT CREATE SESSION   TO ROLE_TECH_PAU;
+GRANT CREATE SESSION   TO ROLE_APPLI_GLPI;
+GRANT CREATE SESSION   TO ROLE_AUDITEUR_PAU;
+GRANT SELECT ANY TABLE TO ROLE_AUDITEUR_PAU;
+GRANT CREATE DATABASE LINK TO ROLE_APPLI_GLPI;
+
+BEGIN
+  FOR u IN (SELECT username FROM dba_users
+            WHERE  username IN ('TECH_PAU1','APPLI_GLPI','AUDITEUR_PAU')) LOOP
+    EXECUTE IMMEDIATE 'DROP USER ' || u.username || ' CASCADE';
+  END LOOP;
+END;
+/
+
+CREATE USER TECH_PAU1
+  IDENTIFIED BY "Tech1_Pau_2026!"
+  DEFAULT TABLESPACE TS_PAU_DATA
+  TEMPORARY TABLESPACE TEMP
+  QUOTA 200M ON TS_PAU_DATA;
+
+-- Même mot de passe que Cergy — c'est ce compte que DBLINK_PAU utilise
+CREATE USER APPLI_GLPI
+  IDENTIFIED BY "AppGLPI_2026!"
+  DEFAULT TABLESPACE TS_PAU_DATA
+  TEMPORARY TABLESPACE TEMP
+  QUOTA UNLIMITED ON TS_PAU_DATA
+  QUOTA UNLIMITED ON TS_PAU_AUDIT;
+
+CREATE USER AUDITEUR_PAU
+  IDENTIFIED BY "Audit_Pau_2026!"
+  DEFAULT TABLESPACE TS_PAU_DATA
+  TEMPORARY TABLESPACE TEMP
+  QUOTA 0 ON TS_PAU_DATA;
+
+GRANT ROLE_TECH_PAU     TO TECH_PAU1;
+GRANT ROLE_APPLI_GLPI   TO APPLI_GLPI;
+GRANT ROLE_AUDITEUR_PAU TO AUDITEUR_PAU;
+
+SELECT username, default_tablespace, account_status
+FROM   dba_users
+WHERE  username IN ('TECH_PAU1','APPLI_GLPI','AUDITEUR_PAU');
