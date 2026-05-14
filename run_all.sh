@@ -114,9 +114,10 @@ for f in cergy/01_tablespaces.sql cergy/02_users_roles.sql cergy/03_schema_table
           cergy/04_index.sql cergy/05_views.sql cergy/06_dblinks.sql \
           cergy/07_views_federated.sql cergy/08_triggers.sql \
           cergy/09_procedures_fonctions.sql cergy/10_data_generation.sql \
-          cergy/03b_fk.sql cergy/11_perf_tests.sql \
+          cergy/03b_fk.sql cergy/02b_grants.sql cergy/11_perf_tests.sql \
+          cergy/12_uc_tests.sql \
           pau/01_tablespaces.sql pau/02_users_roles.sql pau/03_schema_tables.sql \
-          pau/03b_fk.sql pau/04_index.sql pau/08_triggers.sql pau/10_data_generation.sql; do
+          pau/03b_fk.sql pau/02b_grants.sql pau/04_index.sql pau/08_triggers.sql pau/10_data_generation.sql; do
     [ ! -f "${DIR}/$f" ] && { err "Manquant : $f"; MISSING=1; }
 done
 [ $MISSING -eq 1 ] && exit 1
@@ -151,6 +152,7 @@ run_sql "$PAU" "pau/02_users_roles.sql"   "[PAU][system]     02 — Users & Rôl
 grant_appli "$PAU" "PAU"
 run_sql "$PAU" "pau/03_schema_tables.sql" "[PAU][APPLI_GLPI] 03 — Schema + Cluster"   "APPLI_GLPI" "critical"
 run_sql "$PAU" "pau/03b_fk.sql"          "[PAU][APPLI_GLPI] 03b— Contraintes FK"    "APPLI_GLPI"
+run_sql "$PAU" "pau/02b_grants.sql"      "[PAU][APPLI_GLPI] 02b— GRANTs sur tables" "APPLI_GLPI"
 run_sql "$PAU" "pau/04_index.sql"         "[PAU][APPLI_GLPI] 04 — Index"              "APPLI_GLPI"
 ok "Étape 1 terminée — Pau prêt"
 
@@ -162,6 +164,7 @@ run_sql "$CERGY" "cergy/02_users_roles.sql"   "[CERGY][system]     02 — Users 
 grant_appli "$CERGY" "CERGY"
 run_sql "$CERGY" "cergy/03_schema_tables.sql" "[CERGY][APPLI_GLPI] 03 — Schema + Cluster + Frag." "APPLI_GLPI" "critical"
 run_sql "$CERGY" "cergy/03b_fk.sql"         "[CERGY][APPLI_GLPI] 03b— Contraintes FK"             "APPLI_GLPI"
+run_sql "$CERGY" "cergy/02b_grants.sql"    "[CERGY][APPLI_GLPI] 02b— GRANTs sur tables"          "APPLI_GLPI"
 run_sql "$CERGY" "cergy/04_index.sql"         "[CERGY][APPLI_GLPI] 04 — Index"                    "APPLI_GLPI"
 run_sql "$CERGY" "cergy/05_views.sql"         "[CERGY][APPLI_GLPI] 05 — Vues locales"             "APPLI_GLPI"
 ok "Étape 2 terminée"

@@ -348,29 +348,29 @@ CREATE OR REPLACE PACKAGE BODY PKG_GLPI_CYTECH AS
 
   FUNCTION F_COUNT_ASSETS(p_site VARCHAR2, p_status VARCHAR2 DEFAULT NULL)
     RETURN NUMBER AS
-  BEGIN RETURN GLPI_CYTECH_OWNER.F_COUNT_ASSETS(p_site, p_status); END;
+  BEGIN RETURN F_COUNT_ASSETS(p_site, p_status); END;
 
   FUNCTION F_IP_AVAILABLE(p_ip VARCHAR2, p_site_code VARCHAR2)
     RETURN VARCHAR2 AS
-  BEGIN RETURN GLPI_CYTECH_OWNER.F_IP_AVAILABLE(p_ip, p_site_code); END;
+  BEGIN RETURN F_IP_AVAILABLE(p_ip, p_site_code); END;
 
   PROCEDURE P_TRANSFER_ASSET(p_computer_id NUMBER,
                               p_reason VARCHAR2 DEFAULT 'Transfert',
                               p_initiated_by NUMBER) AS
-  BEGIN GLPI_CYTECH_OWNER.P_TRANSFER_ASSET(p_computer_id, p_reason, p_initiated_by); END;
+  BEGIN P_TRANSFER_ASSET(p_computer_id, p_reason, p_initiated_by); END;
 
   PROCEDURE P_CREATE_USER(p_login VARCHAR2, p_password VARCHAR2,
                           p_realname VARCHAR2, p_firstname VARCHAR2,
                           p_site VARCHAR2, p_profile NUMBER DEFAULT 2) AS
-  BEGIN GLPI_CYTECH_OWNER.P_CREATE_USER(p_login, p_password, p_realname,
+  BEGIN P_CREATE_USER(p_login, p_password, p_realname,
                                          p_firstname, p_site, p_profile); END;
 
   PROCEDURE P_RAPPORT_INVENTAIRE_SALLE(p_building VARCHAR2, p_room VARCHAR2) AS
-  BEGIN GLPI_CYTECH_OWNER.P_RAPPORT_INVENTAIRE_SALLE(p_building, p_room); END;
+  BEGIN P_RAPPORT_INVENTAIRE_SALLE(p_building, p_room); END;
 
   PROCEDURE P_DYNAMIC_REPORT(p_site VARCHAR2, p_status VARCHAR2 DEFAULT NULL,
                               p_cursor OUT SYS_REFCURSOR) AS
-  BEGIN GLPI_CYTECH_OWNER.P_DYNAMIC_REPORT(p_site, p_status, p_cursor); END;
+  BEGIN P_DYNAMIC_REPORT(p_site, p_status, p_cursor); END;
 
 END PKG_GLPI_CYTECH;
 /

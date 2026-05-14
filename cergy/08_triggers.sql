@@ -1,205 +1,170 @@
 -- =============================================================================
 -- FICHIER  : cergy/08_triggers.sql
--- INSTANCE : cergy_db (Lead)
--- NOTION   : Triggers PL/SQL
 -- =============================================================================
+SET SERVEROUTPUT ON;
 
--- =============================================================================
 -- TRIGGER 1 — TRG_AUDIT_COMPUTERS
--- UC08 : audit automatique de toutes les modifications sur CYT_COMPUTERS
--- Type : AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW
--- Action : INSERT dans CYT_AUDIT_LOG avec old_value / new_value
--- =============================================================================
 CREATE OR REPLACE TRIGGER TRG_AUDIT_COMPUTERS
   AFTER INSERT OR UPDATE OR DELETE ON CYT_COMPUTERS
   FOR EACH ROW
 DECLARE
-  v_op        VARCHAR2(10);
-  v_old_val   VARCHAR2(500);
-  v_new_val   VARCHAR2(500);
-  v_item_id   NUMBER;
-  v_entity_id NUMBER;
+  v_op   VARCHAR2(10);
+  v_old  VARCHAR2(500);
+  v_new  VARCHAR2(500);
+  v_id   NUMBER;
+  v_eid  NUMBER;
+  v_now  DATE := SYSDATE;
 BEGIN
   IF INSERTING THEN
-    v_op        := 'INSERT';
-    v_old_val   := NULL;
-    v_new_val   := 'serial='  || :NEW.serial
-                || ',name='   || :NEW.computer_name
-                || ',status=' || :NEW.status
-                || ',entity=' || TO_CHAR(:NEW.entity_id);
-    v_item_id   := :NEW.computer_id;
-    v_entity_id := :NEW.entity_id;
-
+    v_op  := 'INSERT';
+    v_id  := :NEW.computer_id;
+    v_eid := :NEW.entity_id;
+    v_new := 'serial=' || :NEW.serial || ' status=' || :NEW.status;
+    v_old := NULL;
   ELSIF UPDATING THEN
-    v_op        := 'UPDATE';
-    v_old_val   := 'status='   || :OLD.status
-                || ',location='|| TO_CHAR(:OLD.location_id)
-                || ',user='    || TO_CHAR(:OLD.user_id);
-    v_new_val   := 'status='   || :NEW.status
-                || ',location='|| TO_CHAR(:NEW.location_id)
-                || ',user='    || TO_CHAR(:NEW.user_id);
-    v_item_id   := :NEW.computer_id;
-    v_entity_id := :NEW.entity_id;
-
+    v_op  := 'UPDATE';
+    v_id  := :NEW.computer_id;
+    v_eid := :NEW.entity_id;
+    v_old := 'status=' || :OLD.status;
+    v_new := 'status=' || :NEW.status;
   ELSE
-    v_op        := 'DELETE';
-    v_old_val   := 'serial='  || :OLD.serial
-                || ',name='   || :OLD.computer_name
-                || ',status=' || :OLD.status;
-    v_new_val   := NULL;
-    v_item_id   := :OLD.computer_id;
-    v_entity_id := :OLD.entity_id;
-  END IF;
-
-  INSERT INTO CYT_AUDIT_LOG (
-    table_name, item_id, entity_id,
-    operation, user_db,
-    old_value, new_value, log_date
-  ) VALUES (
-    'CYT_COMPUTERS', v_item_id, v_entity_id,
-    v_op, USER,
-    v_old_val, v_new_val, SYSDATE
-  );
-
-EXCEPTION
-  WHEN OTHERS THEN NULL;  -- ne jamais bloquer la transaction principale
-END TRG_AUDIT_COMPUTERS;
-/
-
-
--- =============================================================================
--- TRIGGER 2 — TRG_AUDIT_USERS
--- UC08 : audit des créations et modifications d'utilisateurs
--- =============================================================================
-CREATE OR REPLACE TRIGGER TRG_AUDIT_USERS
-  AFTER INSERT OR UPDATE OR DELETE ON CYT_USERS
-  FOR EACH ROW
-DECLARE
-  v_op      VARCHAR2(10);
-  v_old_val VARCHAR2(500);
-  v_new_val VARCHAR2(500);
-BEGIN
-  IF INSERTING THEN
-    v_op    := 'INSERT';
-    v_new_val := 'login=' || :NEW.login || ',active=' || TO_CHAR(:NEW.is_active);
-  ELSIF UPDATING THEN
-    v_op    := 'UPDATE';
-    v_old_val := 'active=' || TO_CHAR(:OLD.is_active)
-              || ',profile='|| TO_CHAR(:OLD.profile_id);
-    v_new_val := 'active=' || TO_CHAR(:NEW.is_active)
-              || ',profile='|| TO_CHAR(:NEW.profile_id);
-  ELSE
-    v_op    := 'DELETE';
-    v_old_val := 'login=' || :OLD.login;
+    v_op  := 'DELETE';
+    v_id  := :OLD.computer_id;
+    v_eid := :OLD.entity_id;
+    v_old := 'serial=' || :OLD.serial;
+    v_new := NULL;
   END IF;
 
   INSERT INTO CYT_AUDIT_LOG (
     table_name, item_id, entity_id,
     operation, user_db, old_value, new_value, log_date
   ) VALUES (
-    'CYT_USERS',
-    NVL(:NEW.user_id, :OLD.user_id),
-    NVL(:NEW.entity_id, :OLD.entity_id),
-    v_op, USER, v_old_val, v_new_val, SYSDATE
+    'CYT_COMPUTERS', v_id, v_eid,
+    v_op, USER, v_old, v_new, v_now
+  );
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END TRG_AUDIT_COMPUTERS;
+/
+
+-- TRIGGER 2 — TRG_AUDIT_USERS
+CREATE OR REPLACE TRIGGER TRG_AUDIT_USERS
+  AFTER INSERT OR UPDATE OR DELETE ON CYT_USERS
+  FOR EACH ROW
+DECLARE
+  v_op   VARCHAR2(10);
+  v_old  VARCHAR2(500);
+  v_new  VARCHAR2(500);
+  v_id   NUMBER;
+  v_eid  NUMBER;
+  v_now  DATE := SYSDATE;
+BEGIN
+  IF INSERTING THEN
+    v_op  := 'INSERT';
+    v_id  := :NEW.user_id;
+    v_eid := :NEW.entity_id;
+    v_new := 'login=' || :NEW.login;
+    v_old := NULL;
+  ELSIF UPDATING THEN
+    v_op  := 'UPDATE';
+    v_id  := :NEW.user_id;
+    v_eid := :NEW.entity_id;
+    v_old := 'is_active=' || :OLD.is_active;
+    v_new := 'is_active=' || :NEW.is_active;
+  ELSE
+    v_op  := 'DELETE';
+    v_id  := :OLD.user_id;
+    v_eid := :OLD.entity_id;
+    v_old := 'login=' || :OLD.login;
+    v_new := NULL;
+  END IF;
+
+  INSERT INTO CYT_AUDIT_LOG (
+    table_name, item_id, entity_id,
+    operation, user_db, old_value, new_value, log_date
+  ) VALUES (
+    'CYT_USERS', v_id, v_eid,
+    v_op, USER, v_old, v_new, v_now
   );
 EXCEPTION
   WHEN OTHERS THEN NULL;
 END TRG_AUDIT_USERS;
 /
 
-
--- =============================================================================
 -- TRIGGER 3 — TRG_SYNC_USER_PAU
--- UC06 : quand un utilisateur est créé/modifié sur Cergy,
---        le répliquer automatiquement sur Pau pour l'itinérance
+-- UC06 : repliquer les users Cergy vers Pau pour l itinerance
 -- PRAGMA AUTONOMOUS_TRANSACTION : si Pau est indisponible,
---   la transaction Cergy n'est PAS annulée
--- =============================================================================
+--   la transaction Cergy n est PAS annulee
 CREATE OR REPLACE TRIGGER TRG_SYNC_USER_PAU
   AFTER INSERT OR UPDATE ON CYT_USERS
   FOR EACH ROW
 DECLARE
   PRAGMA AUTONOMOUS_TRANSACTION;
-  v_count NUMBER;
+  v_count  NUMBER;
+  v_login  VARCHAR2(100) := :NEW.login;
+  v_uid    NUMBER        := :NEW.user_id;
+  v_eid    NUMBER        := :NEW.entity_id;
+  v_active NUMBER        := :NEW.is_active;
+  v_hash   VARCHAR2(255) := :NEW.password_hash;
+  v_real   VARCHAR2(100) := :NEW.realname;
+  v_first  VARCHAR2(100) := :NEW.firstname;
+  v_err    VARCHAR2(500);
 BEGIN
-  -- Vérifier si l'user existe déjà sur Pau
+  -- Copier toutes les valeurs :NEW en variables locales avant le DBLink
   SELECT COUNT(*) INTO v_count
   FROM   CYT_USERS@DBLINK_PAU
-  WHERE  login = :NEW.login;
+  WHERE  login = v_login;
 
-  IF INSERTING THEN
-    IF v_count = 0 THEN
-      -- Créer l'utilisateur sur Pau
-      INSERT INTO CYT_USERS@DBLINK_PAU (
-        login, password_hash, realname, firstname,
-        entity_id, profile_id, is_active, date_created
-      ) VALUES (
-        :NEW.login, :NEW.password_hash,
-        :NEW.realname, :NEW.firstname,
-        1,              -- entity_id local Pau
-        1,              -- profil Technicien par défaut sur Pau
-        :NEW.is_active,
-        SYSDATE
-      );
-    END IF;
-
-  ELSIF UPDATING THEN
-    IF v_count > 0 THEN
-      -- Synchroniser mot de passe et statut uniquement
-      UPDATE CYT_USERS@DBLINK_PAU
-      SET    is_active     = :NEW.is_active,
-             password_hash = :NEW.password_hash,
-             date_mod      = SYSDATE
-      WHERE  login = :NEW.login;
-    END IF;
+  IF INSERTING AND v_count = 0 THEN
+    -- Pas de DATE dans le INSERT via DBLink (ORA-00984 sur Oracle 23ai)
+    INSERT INTO CYT_USERS@DBLINK_PAU (
+      login, password_hash, realname, firstname,
+      entity_id, profile_id, is_active
+    ) VALUES (
+      v_login, v_hash, v_real, v_first, 1, 1, v_active
+    );
+  ELSIF UPDATING AND v_count > 0 THEN
+    UPDATE CYT_USERS@DBLINK_PAU
+    SET    is_active     = v_active,
+           password_hash = v_hash
+    WHERE  login = v_login;
   END IF;
-
   COMMIT;
 
 EXCEPTION
   WHEN OTHERS THEN
-    ROLLBACK;
-    -- Logger l'échec de sync sans bloquer Cergy
-    INSERT INTO CYT_AUDIT_LOG (
-      table_name, item_id, entity_id,
-      operation, user_db, new_value, log_date
-    ) VALUES (
-      'SYNC_PAU_FAILED', :NEW.user_id, :NEW.entity_id,
-      'INSERT', USER,
-      'Echec sync Pau : ' || SQLERRM,
-      SYSDATE
-    );
-    COMMIT;
+    -- Stocker SQLERRM en variable avant le ROLLBACK
+    v_err := SUBSTR('Echec sync Pau : ' || SQLERRM, 1, 500);
+    BEGIN
+      ROLLBACK;
+      INSERT INTO CYT_AUDIT_LOG (
+        table_name, item_id, entity_id,
+        operation, user_db, new_value, log_date
+      ) VALUES (
+        'SYNC_PAU_FAILED', v_uid, v_eid,
+        'INSERT', USER, v_err, SYSDATE
+      );
+      COMMIT;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
 END TRG_SYNC_USER_PAU;
 /
 
-
--- =============================================================================
 -- TRIGGER 4 — TRG_STATUS_TRANSFER
--- UC07 : quand un transfert est enregistré dans CYT_ASSET_TRANSFER,
---        mettre automatiquement le PC en statut 'TRANSFERT'
--- Type : BEFORE INSERT (pour agir avant l'insertion du transfert)
--- =============================================================================
 CREATE OR REPLACE TRIGGER TRG_STATUS_TRANSFER
-  BEFORE INSERT ON CYT_ASSET_TRANSFER
+  AFTER INSERT ON CYT_ASSET_TRANSFER
   FOR EACH ROW
 BEGIN
-  -- Mettre le PC en statut TRANSFERT automatiquement
   UPDATE CYT_COMPUTERS
-  SET    status   = 'TRANSFERT',
-         date_mod = SYSDATE
-  WHERE  computer_id = :NEW.computer_id
-  AND    status NOT IN ('TRANSFERT','RETIRE');
-
-  IF SQL%ROWCOUNT = 0 THEN
-    RAISE_APPLICATION_ERROR(-20010,
-      'PC introuvable ou déjà en transfert : id=' || :NEW.computer_id);
-  END IF;
+  SET    status = 'TRANSFERT'
+  WHERE  computer_id = :NEW.computer_id;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
 END TRG_STATUS_TRANSFER;
 /
 
--- Vérification
-SELECT trigger_name, table_name, trigger_type, status
-FROM   user_triggers
-WHERE  table_name LIKE 'CYT_%'
-ORDER BY table_name;
+-- Verification
+SELECT trigger_name, status FROM user_triggers ORDER BY trigger_name;
+SHOW ERRORS TRIGGER TRG_AUDIT_COMPUTERS;
+SHOW ERRORS TRIGGER TRG_AUDIT_USERS;
+SHOW ERRORS TRIGGER TRG_SYNC_USER_PAU;

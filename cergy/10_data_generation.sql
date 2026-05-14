@@ -4,7 +4,7 @@
 -- =============================================================================
 SET SERVEROUTPUT ON SIZE 1000000;
 
--- Nettoyage complet
+-- Nettoyage
 DELETE FROM CYT_AUDIT_LOG;
 DELETE FROM CYT_ASSET_TRANSFER;
 DELETE FROM CYT_INFOCOMS;
@@ -13,7 +13,75 @@ DELETE FROM CYT_COMPUTERS_DETAIL;
 DELETE FROM CYT_PORT_LINKS;
 DELETE FROM CYT_NETWORKPORTS;
 DELETE FROM CYT_COMPUTERS;
+DELETE FROM CYT_NETEQUIP;
+DELETE FROM CYT_GROUPS_USERS;
+DELETE FROM CYT_USERS_PROFILES;
+DELETE FROM CYT_USERS_DETAIL;
+DELETE FROM CYT_USERS;
+DELETE FROM CYT_LOCATIONS WHERE location_id > 3;
 COMMIT;
+
+-- BLOC 1 : Localisations supplementaires
+BEGIN
+  FOR i IN 1..10 LOOP
+    INSERT INTO CYT_LOCATIONS (entity_id, location_name, building, room, floor)
+    VALUES (1, 'Salle ' || TO_CHAR(i, 'FM000'),
+            'Batiment ' || CHR(64 + MOD(i, 4) + 1),
+            'Salle ' || TO_CHAR(i * 10), MOD(i, 4));
+  END LOOP;
+  COMMIT;
+  DBMS_OUTPUT.PUT_LINE('Localisations inserees');
+END;
+/
+
+-- BLOC 2 : Switchs
+BEGIN
+  FOR i IN 1..20 LOOP
+    INSERT INTO CYT_NETEQUIP (entity_id, location_id, manufacturer_id,
+      netequip_name, serial, equip_type, nb_ports)
+    VALUES (1, MOD(i, 3) + 1, 5,
+            'SW-BAT-' || CHR(64 + MOD(i,4) + 1) || '-' || TO_CHAR(i, 'FM00'),
+            'SN-SW-' || TO_CHAR(i, 'FM0000'),
+            CASE WHEN MOD(i, 5) = 0 THEN 'ROUTER' ELSE 'SWITCH' END, 48);
+  END LOOP;
+  COMMIT;
+  DBMS_OUTPUT.PUT_LINE('Switchs inseres');
+END;
+/
+
+-- BLOC 3 : Users (1000) — trigger desactive pendant insertion de masse
+ALTER TRIGGER TRG_SYNC_USER_PAU DISABLE;
+
+DECLARE
+  v_prenom VARCHAR2(50);
+  v_nom    VARCHAR2(50);
+  v_uid    NUMBER;
+BEGIN
+  FOR i IN 1..1000 LOOP
+    v_prenom := DBMS_RANDOM.STRING('L', 6);
+    v_nom    := DBMS_RANDOM.STRING('U', 8);
+    INSERT INTO CYT_USERS (login, password_hash, realname, firstname,
+      entity_id, profile_id, is_active, date_created)
+    VALUES (LOWER(v_prenom) || TO_CHAR(i),
+            DBMS_RANDOM.STRING('A', 60),
+            v_nom, INITCAP(v_prenom), 1,
+            CASE WHEN MOD(i,10)=0 THEN 1 ELSE 2 END,
+            CASE WHEN MOD(i,20)=0 THEN 0 ELSE 1 END,
+            SYSDATE - DBMS_RANDOM.VALUE(0, 730))
+    RETURNING user_id INTO v_uid;
+    INSERT INTO CYT_USERS_DETAIL (user_id, phone, language, registration_number)
+    VALUES (v_uid,
+            '06' || TO_CHAR(TRUNC(DBMS_RANDOM.VALUE(10000000, 99999999))),
+            CASE WHEN MOD(i,10)=0 THEN 'en_US' ELSE 'fr_FR' END,
+            'CYT-' || TO_CHAR(2020 + MOD(i, 6)) || '-' || TO_CHAR(i, 'FM00000'));
+    IF MOD(i, 100) = 0 THEN COMMIT; END IF;
+  END LOOP;
+  COMMIT;
+  DBMS_OUTPUT.PUT_LINE('1000 users inseres');
+END;
+/
+
+ALTER TRIGGER TRG_SYNC_USER_PAU ENABLE;
 
 -- BLOC 4 : PC Cergy (3000)
 DECLARE
@@ -32,18 +100,17 @@ BEGIN
     v_nuser := v_nuser + 1;
     v_users(v_nuser) := r.user_id;
   END LOOP;
-
+  DBMS_OUTPUT.PUT_LINE('Locations: ' || v_nloc || ' | Users: ' || v_nuser);
   FOR i IN 1..3000 LOOP
-    INSERT INTO CYT_COMPUTERS (
-      serial, computer_name, entity_id, location_id,
+    INSERT INTO CYT_COMPUTERS (serial, computer_name, entity_id, location_id,
       type_id, model_id, manufacturer_id, user_id,
-      status, date_purchase, date_created
-    ) VALUES (
+      status, date_purchase, date_created)
+    VALUES (
       'SN-CY-' || TO_CHAR(i, 'FM00000'),
       'PC-CERGY-' || TO_CHAR(i, 'FM00000'),
       1,
       v_locs(MOD(i-1, v_nloc) + 1),
-      MOD(i, 4) + 1, MOD(i, 4) + 1, MOD(i, 4) + 1,
+      MOD(i, 4)+1, MOD(i, 4)+1, MOD(i, 4)+1,
       v_users(MOD(i-1, v_nuser) + 1),
       CASE WHEN MOD(i,20)=0 THEN 'HORS_SERVICE'
            WHEN MOD(i,15)=0 THEN 'EN_STOCK'
@@ -52,12 +119,10 @@ BEGIN
       SYSDATE - DBMS_RANDOM.VALUE(30, 1825),
       SYSDATE - DBMS_RANDOM.VALUE(0, 1825)
     ) RETURNING computer_id INTO v_cid;
-
     INSERT INTO CYT_COMPUTERS_DETAIL (computer_id, uuid, ticket_tco, last_boot)
     VALUES (v_cid, SYS_GUID(),
             ROUND(DBMS_RANDOM.VALUE(500,3000),2),
             SYSDATE - DBMS_RANDOM.VALUE(0,30));
-
     IF MOD(i,200)=0 THEN COMMIT; END IF;
   END LOOP;
   COMMIT;
@@ -66,53 +131,33 @@ END;
 /
 
 -- BLOC 5 : Ports reseau + liaisons
--- MAC unique : basee sur port_id (toujours unique via sequence)
--- Format : aa:bb:cc:dd:ee:ff avec 6 octets distincts
 DECLARE
-  v_pid    NUMBER;
-  v_spid   NUMBER;
-  v_sw     NUMBER;
-  v_b1     VARCHAR2(2); v_b2 VARCHAR2(2);
-  v_b3     VARCHAR2(2); v_b4 VARCHAR2(2);
-  v_b5     VARCHAR2(2); v_b6 VARCHAR2(2);
+  v_pid NUMBER; v_spid NUMBER; v_sw NUMBER;
+  v_b1 VARCHAR2(2); v_b2 VARCHAR2(2); v_b3 VARCHAR2(2);
+  v_b4 VARCHAR2(2); v_b5 VARCHAR2(2);
 BEGIN
   SELECT COUNT(*) INTO v_sw FROM CYT_NETEQUIP;
-
   FOR c IN (SELECT computer_id FROM CYT_COMPUTERS
-            WHERE is_deleted = 0 AND ROWNUM <= 3000) LOOP
+            WHERE is_deleted=0 AND ROWNUM<=3000) LOOP
     v_pid := SEQ_NETWORKPORT_ID.NEXTVAL;
-
-    -- MAC unique basee sur v_pid (6 octets independants)
     v_b1 := TO_CHAR(MOD(TRUNC(v_pid/1),256),'FM0X');
     v_b2 := TO_CHAR(MOD(TRUNC(v_pid/256),256),'FM0X');
     v_b3 := TO_CHAR(MOD(TRUNC(v_pid/65536),256),'FM0X');
     v_b4 := TO_CHAR(MOD(c.computer_id,256),'FM0X');
     v_b5 := TO_CHAR(MOD(TRUNC(c.computer_id/256),256),'FM0X');
-    v_b6 := '02';  -- bit admin local = unique
-
-    INSERT INTO CYT_NETWORKPORTS (
-      port_id, items_id, item_type, entity_id,
-      logical_number, port_name, mac_address, network_id, port_status
-    ) VALUES (
-      v_pid, c.computer_id, 'COMPUTER', 1, 0, 'eth0',
-      v_b1||':'||v_b2||':'||v_b3||':'||v_b4||':'||v_b5||':'||v_b6,
-      MOD(v_pid,3)+1, 'ACTIVE'
-    );
-
+    INSERT INTO CYT_NETWORKPORTS (port_id, items_id, item_type, entity_id,
+      logical_number, port_name, mac_address, network_id, port_status)
+    VALUES (v_pid, c.computer_id, 'COMPUTER', 1, 0, 'eth0',
+            v_b1||':'||v_b2||':'||v_b3||':'||v_b4||':'||v_b5||':02',
+            MOD(v_pid,3)+1, 'ACTIVE');
     v_spid := SEQ_NETWORKPORT_ID.NEXTVAL;
-    INSERT INTO CYT_NETWORKPORTS (
-      port_id, items_id, item_type, entity_id,
-      logical_number, port_name, network_id, port_status
-    ) VALUES (
-      v_spid, MOD(c.computer_id,v_sw)+1, 'NETEQUIP', 1,
-      MOD(c.computer_id,48),
-      'GigabitEthernet0/'||TO_CHAR(MOD(c.computer_id,48)),
-      MOD(v_spid,3)+1, 'ACTIVE'
-    );
-
-    INSERT INTO CYT_PORT_LINKS (port_src, port_dst)
-    VALUES (v_pid, v_spid);
-
+    INSERT INTO CYT_NETWORKPORTS (port_id, items_id, item_type, entity_id,
+      logical_number, port_name, network_id, port_status)
+    VALUES (v_spid, MOD(c.computer_id,v_sw)+1, 'NETEQUIP', 1,
+            MOD(c.computer_id,48),
+            'GigabitEthernet0/'||TO_CHAR(MOD(c.computer_id,48)),
+            MOD(v_spid,3)+1, 'ACTIVE');
+    INSERT INTO CYT_PORT_LINKS (port_src, port_dst) VALUES (v_pid, v_spid);
     IF MOD(v_pid,200)=0 THEN COMMIT; END IF;
   END LOOP;
   COMMIT;
@@ -121,25 +166,17 @@ END;
 /
 
 -- BLOC 6 : Adresses IP uniques
--- Format : 10.x.y.z avec x,y,z bases sur computer_id pour garantir unicite
 DECLARE
-  v_octet2 NUMBER;
-  v_octet3 NUMBER;
-  v_octet4 NUMBER;
+  v_o2 NUMBER; v_o3 NUMBER; v_o4 NUMBER;
 BEGIN
   FOR c IN (SELECT computer_id, entity_id FROM CYT_COMPUTERS
-            WHERE is_deleted = 0 AND ROWNUM <= 3000) LOOP
-    -- computer_id unique -> IP unique
-    v_octet2 := TRUNC((c.computer_id - 1) / 65025);
-    v_octet3 := TRUNC(MOD((c.computer_id - 1), 65025) / 255);
-    v_octet4 := MOD((c.computer_id - 1), 255) + 1;
-
+            WHERE is_deleted=0 AND ROWNUM<=3000) LOOP
+    v_o2 := TRUNC((c.computer_id-1)/65025);
+    v_o3 := TRUNC(MOD((c.computer_id-1),65025)/255);
+    v_o4 := MOD((c.computer_id-1),255)+1;
     INSERT INTO CYT_IPADDRESSES (entity_id, items_id, item_type, ip_address)
     VALUES (c.entity_id, c.computer_id, 'COMPUTER',
-            '10.' || TO_CHAR(v_octet2) || '.'
-                  || TO_CHAR(v_octet3) || '.'
-                  || TO_CHAR(v_octet4));
-
+            '10.'||TO_CHAR(v_o2)||'.'||TO_CHAR(v_o3)||'.'||TO_CHAR(v_o4));
     IF MOD(c.computer_id,300)=0 THEN COMMIT; END IF;
   END LOOP;
   COMMIT;
@@ -148,10 +185,10 @@ END;
 /
 
 -- Resume final
-SELECT 'CYT_COMPUTERS'    AS t, COUNT(*) n FROM CYT_COMPUTERS    UNION ALL
-SELECT 'CYT_USERS',            COUNT(*) FROM CYT_USERS            UNION ALL
-SELECT 'CYT_NETWORKPORTS',     COUNT(*) FROM CYT_NETWORKPORTS     UNION ALL
-SELECT 'CYT_PORT_LINKS',       COUNT(*) FROM CYT_PORT_LINKS       UNION ALL
-SELECT 'CYT_IPADDRESSES',      COUNT(*) FROM CYT_IPADDRESSES      UNION ALL
-SELECT 'CYT_NETEQUIP',         COUNT(*) FROM CYT_NETEQUIP         UNION ALL
-SELECT 'CYT_AUDIT_LOG',        COUNT(*) FROM CYT_AUDIT_LOG;
+SELECT 'CYT_COMPUTERS'    t, COUNT(*) n FROM CYT_COMPUTERS    UNION ALL
+SELECT 'CYT_USERS',          COUNT(*) FROM CYT_USERS           UNION ALL
+SELECT 'CYT_NETWORKPORTS',   COUNT(*) FROM CYT_NETWORKPORTS    UNION ALL
+SELECT 'CYT_PORT_LINKS',     COUNT(*) FROM CYT_PORT_LINKS      UNION ALL
+SELECT 'CYT_IPADDRESSES',    COUNT(*) FROM CYT_IPADDRESSES     UNION ALL
+SELECT 'CYT_NETEQUIP',       COUNT(*) FROM CYT_NETEQUIP        UNION ALL
+SELECT 'CYT_AUDIT_LOG',      COUNT(*) FROM CYT_AUDIT_LOG;
