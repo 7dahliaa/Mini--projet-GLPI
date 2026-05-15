@@ -53,6 +53,18 @@ SQL> @/tmp/test_AUDITEUR.sql
 sqlplus "ADMIN_DSI/DSI_CyTech_2026!@//localhost:1521/FREEPDB1"
 SQL> @/tmp/test_ADMIN_DSI.sql
 
+
+# TECH_PAU1 — depuis Pau (port 1522)
+
+sqlplus 'TECH_PAU1/Tech1_Pau_2026!@//localhost:1522/FREEPDB1'
+SQL> @test_users/test_TECH_PAU1.sql
+
+# AUDITEUR_PAU — depuis Pau (port 1522)
+sqlplus 'AUDITEUR_PAU/Audit_Pau_2026!@//localhost:1522/FREEPDB1'
+SQL> @test_users/test_AUDITEUR_PAU.sql
+
+
+
 COMPTES ET MOTS DE PASSE :
 --------------------------
 TECH_CERGY1  / Tech1_Cergy_2026!   -> ROLE_TECH_CERGY  (DML assets Cergy)
