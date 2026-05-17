@@ -1,12 +1,4 @@
--- =============================================================================
--- FICHIER  : pau/08_triggers.sql
--- INSTANCE : pau_db (Spoke)
--- NOTION   : Triggers PL/SQL — audit local Pau
--- NOTE     : Pau n'a PAS TRG_SYNC_USER_PAU (c'est Cergy qui synchronise)
---            Pau n'a PAS TRG_STATUS_TRANSFER (pas de CYT_ASSET_TRANSFER)
--- =============================================================================
-
--- Trigger audit PC (identique à Cergy — chaque instance audite localement)
+-- Audit des ordinateurs côté Pau
 CREATE OR REPLACE TRIGGER TRG_AUDIT_COMPUTERS
   AFTER INSERT OR UPDATE OR DELETE ON CYT_COMPUTERS
   FOR EACH ROW
@@ -43,7 +35,7 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END TRG_AUDIT_COMPUTERS;
 /
 
--- Trigger audit users Pau
+-- Audit des utilisateurs côté Pau
 CREATE OR REPLACE TRIGGER TRG_AUDIT_USERS
   AFTER INSERT OR UPDATE OR DELETE ON CYT_USERS
   FOR EACH ROW
@@ -65,6 +57,6 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END TRG_AUDIT_USERS;
 /
-
+-- Vérification des triggers créés
 SELECT trigger_name, table_name, status
 FROM   user_triggers WHERE table_name LIKE 'CYT_%';

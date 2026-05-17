@@ -1,9 +1,6 @@
--- =============================================================================
--- FICHIER  : cergy/08_triggers.sql
--- =============================================================================
 SET SERVEROUTPUT ON;
 
--- TRIGGER 1 — TRG_AUDIT_COMPUTERS
+-- Audit des ordinateurs
 CREATE OR REPLACE TRIGGER TRG_AUDIT_COMPUTERS
   AFTER INSERT OR UPDATE OR DELETE ON CYT_COMPUTERS
   FOR EACH ROW
@@ -47,7 +44,7 @@ EXCEPTION
 END TRG_AUDIT_COMPUTERS;
 /
 
--- TRIGGER 2 — TRG_AUDIT_USERS
+-- Audit des utilisateurs
 CREATE OR REPLACE TRIGGER TRG_AUDIT_USERS
   AFTER INSERT OR UPDATE OR DELETE ON CYT_USERS
   FOR EACH ROW
@@ -91,10 +88,8 @@ EXCEPTION
 END TRG_AUDIT_USERS;
 /
 
--- TRIGGER 3 — TRG_SYNC_USER_PAU
--- UC06 : repliquer les users Cergy vers Pau pour l itinerance
--- PRAGMA AUTONOMOUS_TRANSACTION : si Pau est indisponible,
---   la transaction Cergy n est PAS annulee
+
+-- Synchronisation des utilisateurs vers Pau
 CREATE OR REPLACE TRIGGER TRG_SYNC_USER_PAU
   AFTER INSERT OR UPDATE ON CYT_USERS
   FOR EACH ROW
@@ -110,19 +105,20 @@ DECLARE
   v_first  VARCHAR2(100) := :NEW.firstname;
   v_err    VARCHAR2(500);
 BEGIN
-  -- Copier toutes les valeurs :NEW en variables locales avant le DBLink
+    -- Je vérifie d'abord si l'utilisateur existe déjà côté Pau
   SELECT COUNT(*) INTO v_count
   FROM   CYT_USERS@DBLINK_PAU
   WHERE  login = v_login;
 
   IF INSERTING AND v_count = 0 THEN
-    -- Pas de DATE dans le INSERT via DBLink (ORA-00984 sur Oracle 23ai)
+     -- Si c'est un nouvel utilisateur, je le crée aussi côté Pau
     INSERT INTO CYT_USERS@DBLINK_PAU (
       login, password_hash, realname, firstname,
       entity_id, profile_id, is_active
     ) VALUES (
       v_login, v_hash, v_real, v_first, 1, 1, v_active
     );
+     -- Si l'utilisateur existe déjà, je mets juste à jour les infos utiles
   ELSIF UPDATING AND v_count > 0 THEN
     UPDATE CYT_USERS@DBLINK_PAU
     SET    is_active     = v_active,
@@ -133,7 +129,6 @@ BEGIN
 
 EXCEPTION
   WHEN OTHERS THEN
-    -- Stocker SQLERRM en variable avant le ROLLBACK
     v_err := SUBSTR('Echec sync Pau : ' || SQLERRM, 1, 500);
     BEGIN
       ROLLBACK;
@@ -150,7 +145,7 @@ EXCEPTION
 END TRG_SYNC_USER_PAU;
 /
 
--- TRIGGER 4 — TRG_STATUS_TRANSFER
+-- Quand un transfert est créé, l'ordinateur passe en statut TRANSFERT
 CREATE OR REPLACE TRIGGER TRG_STATUS_TRANSFER
   AFTER INSERT ON CYT_ASSET_TRANSFER
   FOR EACH ROW
@@ -163,7 +158,7 @@ EXCEPTION
 END TRG_STATUS_TRANSFER;
 /
 
--- Verification
+-- Vérification des triggers
 SELECT trigger_name, status FROM user_triggers ORDER BY trigger_name;
 SHOW ERRORS TRIGGER TRG_AUDIT_COMPUTERS;
 SHOW ERRORS TRIGGER TRG_AUDIT_USERS;
