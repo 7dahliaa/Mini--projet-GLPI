@@ -1,15 +1,13 @@
--- =============================================================================
+
 -- FICHIER  : cergy/02_users_roles.sql
 -- INSTANCE : cergy_db (Lead)
 -- NOTION   : Utilisateurs & Rôles Oracle
 -- SOURCE   : Réadaptation de glpi_profiles + glpi_profiles_users + glpi_groups
 -- OBJECTIF : Principe du moindre privilège — chaque acteur a exactement
 --            les droits nécessaires, ni plus.
--- =============================================================================
 
--- =============================================================================
 -- PARTIE 1 — RÔLES
--- =============================================================================
+
 BEGIN
   FOR r IN (SELECT role_name FROM dba_roles
             WHERE  role_name IN ('ROLE_DSI_ADMIN','ROLE_TECH_CERGY',
