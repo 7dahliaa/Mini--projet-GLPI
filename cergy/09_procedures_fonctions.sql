@@ -1,14 +1,4 @@
--- =============================================================================
--- FICHIER  : cergy/09_procedures_fonctions.sql
--- INSTANCE : cergy_db (Lead)
--- NOTION   : Procédures, Fonctions, Curseurs, Package PL/SQL
--- =============================================================================
-
--- =============================================================================
--- FONCTION 1 — F_COUNT_ASSETS
--- UC10 : compter les équipements par site et statut
--- Utilisée dans les rapports et tests de performance
--- =============================================================================
+-- Compte les PC d'un site, avec ou sans filtre sur le statut
 CREATE OR REPLACE FUNCTION F_COUNT_ASSETS (
   p_site_code IN VARCHAR2,
   p_status    IN VARCHAR2 DEFAULT NULL
@@ -40,14 +30,12 @@ END F_COUNT_ASSETS;
 /
 
 
--- =============================================================================
--- FONCTION 2 — F_IP_AVAILABLE
--- UC04 : vérifier si une adresse IP est libre sur un site
--- =============================================================================
+
+-- Vérifie si une IP est déjà utilisée sur un site
 CREATE OR REPLACE FUNCTION F_IP_AVAILABLE (
   p_ip        IN VARCHAR2,
   p_site_code IN VARCHAR2
-) RETURN VARCHAR2 AS   -- retourne 'OUI' ou 'NON'
+) RETURN VARCHAR2 AS
   v_count   NUMBER;
   v_entity  NUMBER;
 BEGIN
@@ -67,11 +55,7 @@ END F_IP_AVAILABLE;
 /
 
 
--- =============================================================================
--- PROCÉDURE 1 — P_TRANSFER_ASSET
--- UC07 : transfert atomique d'un PC de Cergy vers Pau
--- Le trigger TRG_STATUS_TRANSFER gère le changement de statut automatiquement
--- =============================================================================
+-- Transfère un ordinateur de Cergy vers Pau
 CREATE OR REPLACE PROCEDURE P_TRANSFER_ASSET (
   p_computer_id  IN NUMBER,
   p_reason       IN VARCHAR2 DEFAULT 'Transfert inter-sites',
@@ -85,20 +69,20 @@ CREATE OR REPLACE PROCEDURE P_TRANSFER_ASSET (
   v_type_id     NUMBER;
   v_manuf_id    NUMBER;
 BEGIN
-  -- Récupérer les infos du PC
+    -- Je récupère les informations du PC à transférer
   SELECT entity_id, serial, computer_name, model_id, type_id, manufacturer_id
   INTO   v_entity_src, v_serial, v_name, v_model_id, v_type_id, v_manuf_id
   FROM   CYT_COMPUTERS
   WHERE  computer_id = p_computer_id AND is_deleted = 0;
 
-  -- Vérifier que le PC est bien sur Cergy
+-- Je récupère les identifiants des sites Cergy et Pau
   SELECT entity_id INTO v_entity_src
   FROM   CYT_ENTITIES WHERE site_code = 'CERGY';
 
   SELECT entity_id INTO v_entity_dst
   FROM   CYT_ENTITIES WHERE site_code = 'PAU';
 
-  -- Enregistrer le transfert (TRG_STATUS_TRANSFER se déclenche automatiquement)
+-- J'enregistre le transfert dans la table prévue
   INSERT INTO CYT_ASSET_TRANSFER (
     computer_id, entity_src, entity_dst,
     initiated_by, transfer_date, reason, status
@@ -107,7 +91,7 @@ BEGIN
     p_initiated_by, SYSDATE, p_reason, 'EN_COURS'
   );
 
-  -- Copier le PC sur Pau via DBLink
+-- Je copie le PC dans la base de Pau
   INSERT INTO CYT_COMPUTERS@DBLINK_PAU (
     serial, computer_name, entity_id,
     model_id, type_id, manufacturer_id,
@@ -118,17 +102,17 @@ BEGIN
     'ACTIF', SYSDATE, SYSDATE
   );
 
-  -- Marquer comme supprimé sur Cergy (transfert définitif)
+-- Je marque le PC comme supprimé côté Cergy
   UPDATE CYT_COMPUTERS
   SET    is_deleted = 1, date_mod = SYSDATE
   WHERE  computer_id = p_computer_id;
 
-  -- Marquer le transfert comme terminé
+-- Je passe le transfert en terminé
   UPDATE CYT_ASSET_TRANSFER
   SET    status = 'TERMINE'
   WHERE  computer_id = p_computer_id AND status = 'EN_COURS';
 
-  -- Mettre à jour le timestamp de dernière sync dans CYT_ENTITIES
+
   UPDATE CYT_ENTITIES
   SET    pau_last_sync = SYSDATE
   WHERE  site_code = 'CERGY';
@@ -147,18 +131,14 @@ END P_TRANSFER_ASSET;
 /
 
 
--- =============================================================================
--- PROCÉDURE 2 — P_CREATE_USER
--- UC02 + UC06 : créer un utilisateur sur un ou les deux sites
--- p_site = 'CERGY', 'PAU' ou 'ALL' (itinérance)
--- =============================================================================
+-- Crée un utilisateur sur Cergy, Pau ou les deux
 CREATE OR REPLACE PROCEDURE P_CREATE_USER (
   p_login     IN VARCHAR2,
   p_password  IN VARCHAR2,
   p_realname  IN VARCHAR2,
   p_firstname IN VARCHAR2,
-  p_site      IN VARCHAR2,   -- 'CERGY', 'PAU' ou 'ALL'
-  p_profile   IN NUMBER DEFAULT 2  -- 2 = Technicien
+  p_site      IN VARCHAR2,
+  p_profile   IN NUMBER DEFAULT 2
 ) AS
   v_entity_id NUMBER;
   v_user_id   NUMBER;

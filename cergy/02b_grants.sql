@@ -1,11 +1,5 @@
--- =============================================================================
--- FICHIER  : cergy/02b_grants.sql
--- EXECUTÉ  : par APPLI_GLPI (propriétaire des tables)
--- NOTION   : GRANTs sur objets — le propriétaire distribue ses droits
--- ORDRE    : après 03_schema_tables.sql, 03b_fk.sql, 05_views.sql, 07_views_federated.sql
--- =============================================================================
-
--- ── ROLE_TECH_CERGY ──────────────────────────────────────────────────────────
+-- Droits du technicien Cergy
+-- Il peut gérer les équipements et consulter les données utiles
 GRANT SELECT, INSERT, UPDATE ON CYT_COMPUTERS        TO ROLE_TECH_CERGY;
 GRANT SELECT, INSERT, UPDATE ON CYT_COMPUTERS_DETAIL TO ROLE_TECH_CERGY;
 GRANT SELECT, INSERT, UPDATE ON CYT_LOCATIONS        TO ROLE_TECH_CERGY;
@@ -21,12 +15,13 @@ GRANT SELECT                 ON CYT_NETWORKS         TO ROLE_TECH_CERGY;
 GRANT SELECT                 ON CYT_USERS            TO ROLE_TECH_CERGY;
 GRANT SELECT                 ON CYT_GROUPS           TO ROLE_TECH_CERGY;
 GRANT SELECT                 ON CYT_GROUPS_USERS     TO ROLE_TECH_CERGY;
--- Vues accessibles au technicien
+-- Accès aux vues pour le technicien
 GRANT SELECT ON V_COMPUTERS_CERGY  TO ROLE_TECH_CERGY;
 GRANT SELECT ON V_COMPUTERS_FULL   TO ROLE_TECH_CERGY;
 GRANT SELECT ON V_NETWORK_MAPPING  TO ROLE_TECH_CERGY;
 
--- ── ROLE_RH ──────────────────────────────────────────────────────────────────
+-- Droits du service RH
+-- Gestion des utilisateurs, profils et groupes
 GRANT SELECT, INSERT, UPDATE         ON CYT_USERS          TO ROLE_RH;
 GRANT SELECT, INSERT, UPDATE         ON CYT_USERS_DETAIL   TO ROLE_RH;
 GRANT SELECT, INSERT, UPDATE         ON CYT_USERS_PROFILES TO ROLE_RH;
@@ -34,10 +29,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON CYT_GROUPS_USERS   TO ROLE_RH;
 GRANT SELECT                         ON CYT_PROFILES       TO ROLE_RH;
 GRANT SELECT                         ON CYT_ENTITIES       TO ROLE_RH;
 GRANT SELECT                         ON CYT_GROUPS         TO ROLE_RH;
--- Vues accessibles au RH
+-- Vue accessible au RH
 GRANT SELECT ON V_USERS_FULL         TO ROLE_RH;
 
--- ── ROLE_AUDITEUR ─────────────────────────────────────────────────────────────
+
+-- Droits de l'auditeur
+-- Lecture seule sur toutes les données importantes
 GRANT SELECT ON CYT_COMPUTERS        TO ROLE_AUDITEUR;
 GRANT SELECT ON CYT_COMPUTERS_DETAIL TO ROLE_AUDITEUR;
 GRANT SELECT ON CYT_USERS            TO ROLE_AUDITEUR;
@@ -64,8 +61,8 @@ GRANT SELECT ON V_AUDIT_RECENT       TO ROLE_AUDITEUR;
 GRANT SELECT ON V_GLOBAL_COMPUTERS   TO ROLE_AUDITEUR;
 GRANT SELECT ON MV_INVENTORY_GLOBAL  TO ROLE_AUDITEUR;
 
--- ── ROLE_DSI_ADMIN ────────────────────────────────────────────────────────────
--- DSI : vision globale Cergy + Pau via vues federees
+-- Droits du DSI
+-- Vision globale des données Cergy et Pau
 GRANT SELECT ON V_GLOBAL_COMPUTERS   TO ROLE_DSI_ADMIN;
 GRANT SELECT ON V_GLOBAL_USERS       TO ROLE_DSI_ADMIN;
 GRANT SELECT ON MV_INVENTORY_GLOBAL  TO ROLE_DSI_ADMIN;
@@ -75,7 +72,7 @@ GRANT SELECT ON V_COMPUTERS_FULL     TO ROLE_DSI_ADMIN;
 GRANT SELECT ON V_NETWORK_MAPPING    TO ROLE_DSI_ADMIN;
 GRANT SELECT ON V_USERS_FULL         TO ROLE_DSI_ADMIN;
 
--- Verification
+-- Vérification des droits accordés
 SELECT grantee, COUNT(*) AS nb_grants
 FROM   user_tab_privs_made
 GROUP BY grantee
