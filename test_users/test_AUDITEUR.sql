@@ -1,9 +1,8 @@
--- =============================================================================
--- CONNEXION : AUDITEUR / Audit_CyTech_2026!
--- ROLE      : ROLE_AUDITEUR
--- OBJECTIF  : Lecture seule sur tout Cergy
--- LANCER    : @test_users/test_AUDITEUR.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Connexion : AUDITEUR / Audit_CyTech_2026!
+-- Rôle      : ROLE_AUDITEUR
+-- Objectif  : Lecture seule globale (Tables Cergy + Vues fédérées et MV)
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON;
 SET LINESIZE 120;
 SET PAGESIZE 20;
@@ -12,7 +11,7 @@ PROMPT ================================================
 PROMPT  AUDITEUR -- Role : ROLE_AUDITEUR (lecture seule)
 PROMPT ================================================
 
--- ── CE QU'IL PEUT FAIRE ──────────────────────────────────────────────────────
+-- 1. Privilèges de lecture (Actions autorisées)
 PROMPT
 PROMPT [OK] SELECT PC Cergy :
 SELECT COUNT(*) AS nb_pc FROM APPLI_GLPI.CYT_COMPUTERS WHERE is_deleted=0;
@@ -37,7 +36,8 @@ PROMPT
 PROMPT [OK] SELECT MV snapshot :
 SELECT site, COUNT(*) nb FROM APPLI_GLPI.MV_INVENTORY_GLOBAL GROUP BY site;
 
--- ── CE QU'IL NE PEUT PAS FAIRE ───────────────────────────────────────────────
+
+-- 2. Tests de sécurité (Actions interdites - ORA-01031 attendu)
 PROMPT
 PROMPT [INTERDIT] INSERT -> ORA-01031 attendu :
 BEGIN

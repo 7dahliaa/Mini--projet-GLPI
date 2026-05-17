@@ -1,10 +1,8 @@
--- =============================================================================
--- CONNEXION : AUDITEUR_PAU / Audit_Pau_2026!
--- PORT      : localhost:1522 (oracle_pau)
--- ROLE      : ROLE_AUDITEUR_PAU
--- OBJECTIF  : Lecture seule Pau + utilisé par DBLINK_PAU_RO depuis Cergy (UC08)
--- LANCER    : @test_users/test_AUDITEUR_PAU.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Connexion : AUDITEUR_PAU / Audit_Pau_2026! (localhost:1522 - oracle_pau)
+-- Rôle      : ROLE_AUDITEUR_PAU
+-- Objectif  : Lecture seule Pau + Compte cible pour DBLINK_PAU_RO (UC08)
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON;
 SET LINESIZE 120;
 SET PAGESIZE 20;
@@ -14,7 +12,7 @@ PROMPT  AUDITEUR_PAU -- Role : ROLE_AUDITEUR_PAU
 PROMPT  Lecture seule Pau + compte DBLINK_PAU_RO
 PROMPT ================================================
 
--- ── CE QU'IL PEUT FAIRE ──────────────────────────────────────────────────────
+-- 1. Privilèges de lecture (Actions autorisées)
 PROMPT
 PROMPT [OK] SELECT PC Pau :
 SELECT COUNT(*) AS nb_pc FROM APPLI_GLPI.CYT_COMPUTERS WHERE is_deleted=0;
@@ -34,7 +32,8 @@ PROMPT
 PROMPT [OK] SELECT ports reseau Pau :
 SELECT COUNT(*) AS nb_ports FROM APPLI_GLPI.CYT_NETWORKPORTS;
 
--- ── CE QU'IL NE PEUT PAS FAIRE ───────────────────────────────────────────────
+
+-- 2. Tests de sécurité (Actions interdites)
 PROMPT
 PROMPT [INTERDIT] INSERT -> interdit :
 BEGIN
@@ -64,13 +63,16 @@ EXCEPTION
 END;
 /
 
-PROMPT
-PROMPT [INFO] Ce compte est aussi utilise par DBLINK_PAU_RO depuis Cergy (UC08)
-PROMPT        Cergy lit APPLI_GLPI.CYT_COMPUTERS@DBLINK_PAU_RO en lecture seule
 
+-- 3. Note pour la soutenance
 PROMPT
 PROMPT ================================================
 PROMPT  Fin des tests AUDITEUR_PAU
 PROMPT  Bilan : lecture seule Pau / ecriture impossible
 PROMPT          compte utilise pour UC08 (audit depuis Cergy)
+PROMPT ================================================
+
+PROMPT ================================================
+PROMPT  FIN DES TESTS - AUDITEUR_PAU
+PROMPT  Bilan : Lecture seule validee / Ecritures impossibles
 PROMPT ================================================

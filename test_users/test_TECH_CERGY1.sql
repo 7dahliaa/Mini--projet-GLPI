@@ -1,9 +1,8 @@
--- =============================================================================
--- CONNEXION : TECH_CERGY1 / Tech1_Cergy_2026!
--- ROLE      : ROLE_TECH_CERGY
--- OBJECTIF  : Démonstration droits technicien site Cergy
--- LANCER    : @test_users/test_TECH_CERGY1.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Connexion : TECH_CERGY1 / Tech1_Cergy_2026!
+-- Rôle      : ROLE_TECH_CERGY
+-- Objectif  : Démonstration des privilèges du technicien sur le site de Cergy
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON;
 SET LINESIZE 120;
 SET PAGESIZE 20;
@@ -12,7 +11,7 @@ PROMPT ================================================
 PROMPT  TECH_CERGY1 -- Role : ROLE_TECH_CERGY
 PROMPT ================================================
 
--- ── SELECT : voir les PC ─────────────────────────────────────────────────────
+-- 1. Privilèges de lecture et d'écriture (Actions autorisées)
 PROMPT
 PROMPT [OK] SELECT sur les PC Cergy :
 
@@ -21,7 +20,6 @@ FROM   APPLI_GLPI.CYT_COMPUTERS
 WHERE  ROWNUM <= 3
 ORDER BY computer_id;
 
--- ── INSERT : ajouter une localisation ────────────────────────────────────────
 PROMPT
 PROMPT [OK] INSERT une nouvelle localisation :
 
@@ -34,9 +32,8 @@ SELECT location_id, location_name, building, room
 FROM   APPLI_GLPI.CYT_LOCATIONS
 WHERE  location_name = 'Salle TEST TECH';
 
--- ── UPDATE : modifier le statut d'un PC ──────────────────────────────────────
 PROMPT
-PROMPT [OK] UPDATE statut d un PC -- AVANT :
+PROMPT [OK] UPDATE statut d un PC -- État initial :
 
 SELECT computer_id, computer_name, status
 FROM   APPLI_GLPI.CYT_COMPUTERS
@@ -52,13 +49,14 @@ SELECT computer_id, computer_name, status
 FROM   APPLI_GLPI.CYT_COMPUTERS
 WHERE  computer_id = (SELECT MIN(computer_id) FROM APPLI_GLPI.CYT_COMPUTERS);
 
--- Remise en etat
+-- Rétablissement de l'état initial pour laisser l'environnement propre
 UPDATE APPLI_GLPI.CYT_COMPUTERS SET status = 'ACTIF'
 WHERE  computer_id = (SELECT MIN(computer_id) FROM APPLI_GLPI.CYT_COMPUTERS);
 COMMIT;
 PROMPT Remis en ACTIF.
 
--- ── CE QU'IL NE PEUT PAS FAIRE ───────────────────────────────────────────────
+
+-- 2. Tests de sécurité (Actions interdites)
 PROMPT
 PROMPT [INTERDIT] DROP TABLE -> ORA-01031 attendu :
 BEGIN

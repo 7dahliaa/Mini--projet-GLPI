@@ -1,9 +1,8 @@
--- =============================================================================
--- CONNEXION : RH_USER / RH_CyTech_2026!
--- ROLE      : ROLE_RH
--- OBJECTIF  : Gestion utilisateurs uniquement
--- LANCER    : @test_users/test_RH_USER.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Connexion : RH_USER / RH_CyTech_2026!
+-- Rôle      : ROLE_RH
+-- Objectif  : Gestion des utilisateurs uniquement (DML ciblé sur CYT_USERS)
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON;
 SET LINESIZE 120;
 SET PAGESIZE 20;
@@ -12,14 +11,14 @@ PROMPT ================================================
 PROMPT  RH_USER -- Role : ROLE_RH
 PROMPT ================================================
 
--- ── CE QU'IL PEUT FAIRE ──────────────────────────────────────────────────────
+-- 1. Actions autorisées (Consultation et modification des données utilisateurs)
 PROMPT
 PROMPT [OK] SELECT utilisateurs :
 SELECT user_id, login, realname, is_active
 FROM   APPLI_GLPI.CYT_USERS WHERE ROWNUM <= 5;
 
 PROMPT
-PROMPT [OK] INSERT un nouvel utilisateur -- AVANT :
+PROMPT [OK] INSERT un nouvel utilisateur -- État initial :
 SELECT COUNT(*) AS nb_users FROM APPLI_GLPI.CYT_USERS;
 
 DECLARE
@@ -49,13 +48,14 @@ PROMPT APRES UPDATE :
 SELECT user_id, login, is_active
 FROM   APPLI_GLPI.CYT_USERS WHERE ROWNUM=1;
 
--- Remise en etat
+-- Rétablissement de l'état initial pour laisser l'environnement propre
 UPDATE APPLI_GLPI.CYT_USERS SET is_active=1
 WHERE  user_id=(SELECT MIN(user_id) FROM APPLI_GLPI.CYT_USERS);
 COMMIT;
 PROMPT Remis en is_active=1.
 
--- ── CE QU'IL NE PEUT PAS FAIRE ───────────────────────────────────────────────
+
+-- 2. Tests de sécurité (Contrôle strict des restrictions d'accès)
 PROMPT
 PROMPT [INTERDIT] SELECT sur CYT_COMPUTERS -> interdit :
 BEGIN

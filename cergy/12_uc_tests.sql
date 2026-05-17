@@ -1,8 +1,8 @@
--- =============================================================================
--- FICHIER  : cergy/12_uc_tests.sql
--- INSTANCE : oracle_cergy (Lead)
--- NOTION   : Validation des 10 Use Cases + Tests de performance
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Fichier  : cergy/12_uc_tests.sql
+-- Instance : oracle_cergy (Lead)
+-- Notion   : Validation des 10 Use Cases + Benchmarks de performance
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON SIZE 1000000;
 SET LINESIZE 120;
 SET PAGESIZE 50;
@@ -12,10 +12,9 @@ PROMPT  VALIDATION DES USE CASES - Projet GLPI CY Tech
 PROMPT  Architecture Oracle Repartie Cergy (Lead) + Pau (Spoke)
 PROMPT ================================================================
 
--- =============================================================================
--- UC01 : Inventaire local Cergy
--- Index IDX_COMP_STATUS_ENTITY + Tablespace TS_CERGY_DATA dedie
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC01 : Inventaire local Cergy (Index IDX_COMP_STATUS_ENTITY + Tablespace dédié)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC01 : Inventaire local Cergy ---
 
@@ -34,6 +33,7 @@ BEGIN
 END;
 /
 
+-- Vérification du plan d'exécution pour s'assurer que l'index et le TS bossent bien
 EXPLAIN PLAN FOR
   SELECT c.computer_name, c.serial, l.building, l.room
   FROM   CYT_COMPUTERS c
@@ -45,9 +45,9 @@ EXPLAIN PLAN FOR
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(FORMAT => 'BASIC +COST'));
 
 
--- =============================================================================
--- UC02 : Gestion RH Pau - Creation utilisateur sur Pau via DBLink
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC02 : Gestion RH Pau - Création utilisateur sur Pau via DBLink
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC02 : Gestion RH Pau - Creation utilisateur ---
 
@@ -61,6 +61,7 @@ BEGIN
 END;
 /
 
+-- Nettoyage pré-test pour éviter les collisions de clés primaires
 BEGIN
   DELETE FROM CYT_USERS@DBLINK_PAU WHERE login = 'test_uc02';
   COMMIT;
@@ -68,6 +69,7 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END;
 /
 
+-- Test d'insertion via la procédure dédiée
 BEGIN
   P_CREATE_USER('test_uc02','TestUC02_2026!','TEST','UC02','PAU',1);
   DBMS_OUTPUT.PUT_LINE('UC02 OK : Utilisateur cree sur Pau via P_CREATE_USER');
@@ -77,21 +79,23 @@ END;
 /
 
 
--- =============================================================================
+-- -----------------------------------------------------------------------------
 -- UC03 : Pilotage DSI - Vision globale Cergy + Pau
--- V_GLOBAL_COMPUTERS (DBLink temps reel) + MV_INVENTORY_GLOBAL (snapshot)
--- =============================================================================
+-- Comparatif Temps réel (Vue fédérée) vs Snapshot (Vue Matérialisée)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC03 : Pilotage DSI - Vision globale ---
 
 DECLARE
   v_t0 NUMBER; v_t1 NUMBER; v_cnt NUMBER;
 BEGIN
+  -- Test 1 : Requête distante en live
   v_t0 := DBMS_UTILITY.GET_TIME;
   SELECT COUNT(*) INTO v_cnt FROM V_GLOBAL_COMPUTERS;
   v_t1 := DBMS_UTILITY.GET_TIME;
   DBMS_OUTPUT.PUT_LINE('UC03 Vue federee   : ' || v_cnt || ' PC total en ' || (v_t1-v_t0) || ' cs');
 
+  -- Test 2 : Consultation du snapshot local
   v_t0 := DBMS_UTILITY.GET_TIME;
   SELECT COUNT(*) INTO v_cnt FROM MV_INVENTORY_GLOBAL;
   v_t1 := DBMS_UTILITY.GET_TIME;
@@ -105,10 +109,10 @@ FROM   V_GLOBAL_COMPUTERS
 GROUP BY site ORDER BY site;
 
 
--- =============================================================================
--- UC04 : Diagnostic Reseau - Cluster CLU_NETWORK
--- CYT_NETWORKPORTS + CYT_PORT_LINKS co-localises (TABLE ACCESS CLUSTER)
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC04 : Diagnostic Réseau - Validation du Cluster CLU_NETWORK
+-- Objectif : Vérifier la co-localisation (TABLE ACCESS CLUSTER)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC04 : Diagnostic Reseau - Cluster CLU_NETWORK ---
 
@@ -131,6 +135,7 @@ BEGIN
 END;
 /
 
+-- Échantillon pour validation visuelle du mapping
 SELECT np1.items_id AS computer_id,
        np1.port_name AS pc_port,
        pl.port_dst AS switch_port_id,
@@ -142,30 +147,26 @@ WHERE  np1.item_type = 'COMPUTER'
 AND    ROWNUM <= 5;
 
 
--- =============================================================================
--- UC05 : Gestion des Acces - Roles et privileges
--- Demo live pendant la soutenance : connexion avec chaque user
--- TECH_CERGY1 : SELECT ok / DROP TABLE interdit / DBLink interdit
--- AUDITEUR    : SELECT ok / INSERT interdit
--- RH_USER     : CYT_USERS ok / CYT_COMPUTERS interdit
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC05 : Gestion des Accès - Rôles et privilèges
+-- Note : Script de démo à dérouler en live pendant la soutenance
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC05 : Gestion des Acces - Roles et privileges ---
 PROMPT Note : demonstration live avec connexion par utilisateur metier
 
--- Roles actifs dans la session courante
+-- Vérif des rôles et privilèges de la session courante
 SELECT role FROM session_roles ORDER BY role;
 
--- Privilege du role courant
 SELECT granted_role, admin_option
 FROM   user_role_privs
 ORDER BY granted_role;
 
 
--- =============================================================================
--- UC06 : Itinerance - Sync utilisateur Cergy -> Pau
--- TRG_SYNC_USER_PAU : AFTER INSERT ON CYT_USERS -> replication via DBLink
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC06 : Itinérance - Synchronisation Cergy -> Pau via Trigger
+-- TRG_SYNC_USER_PAU (AFTER INSERT)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC06 : Itinerance - Synchronisation Cergy->Pau ---
 
@@ -175,6 +176,7 @@ DECLARE
   v_login VARCHAR2(100) := 'test_itinerance_uc06';
   v_cnt_c NUMBER; v_cnt_p NUMBER;
 BEGIN
+  -- Clean initial
   BEGIN
     DELETE FROM CYT_USERS WHERE login = v_login;
     DELETE FROM CYT_USERS@DBLINK_PAU WHERE login = v_login;
@@ -196,6 +198,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('UC06 PARTIEL : Cergy=' || v_cnt_c || ' Pau=' || v_cnt_p);
   END IF;
 
+  -- Clean après exécution
   DELETE FROM CYT_USERS WHERE login = v_login;
   DELETE FROM CYT_USERS@DBLINK_PAU WHERE login = v_login;
   COMMIT;
@@ -205,10 +208,10 @@ END;
 /
 
 
--- =============================================================================
+-- -----------------------------------------------------------------------------
 -- UC07 : Mouvement de Parc - Transfert PC Cergy -> Pau
--- P_TRANSFER_ASSET : INSERT sur Pau via DBLink + CYT_ASSET_TRANSFER
--- =============================================================================
+-- Procédure P_TRANSFER_ASSET (Log historique + insertion distante via DBLink)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC07 : Mouvement de Parc - Transfert PC Cergy->Pau ---
 
@@ -218,6 +221,7 @@ DECLARE
   v_cnt_av_c NUMBER; v_cnt_av_p NUMBER;
   v_cnt_ap_c NUMBER; v_cnt_ap_p NUMBER;
 BEGIN
+  -- Sélection d'une machine éligible pour le transfert (cohérence des FK sur Pau)
   SELECT c.computer_id INTO v_comp_id
   FROM   CYT_COMPUTERS c
   WHERE  c.status     = 'ACTIF'
@@ -233,6 +237,7 @@ BEGIN
   SELECT COUNT(*) INTO v_cnt_av_p FROM CYT_COMPUTERS@DBLINK_PAU;
   DBMS_OUTPUT.PUT_LINE('UC07 AVANT : Cergy=' || v_cnt_av_c || ' PC, Pau=' || v_cnt_av_p || ' PC');
 
+  -- Exécution du transfert
   P_TRANSFER_ASSET(v_comp_id, 'UC07 - Test transfert inter-sites', v_user_id);
 
   SELECT COUNT(*) INTO v_cnt_ap_c FROM CYT_COMPUTERS WHERE is_deleted = 0;
@@ -244,16 +249,16 @@ EXCEPTION
 END;
 /
 
+-- Vérification de l'historique des transferts
 SELECT transfer_id, computer_id, status, transfer_date
 FROM   CYT_ASSET_TRANSFER
 WHERE  ROWNUM <= 3 ORDER BY transfer_date DESC;
 
 
--- =============================================================================
--- UC08 : Audit de Conformite - Lecture Pau depuis Cergy en lecture seule
--- DBLINK_PAU_RO : connexion AUDITEUR_PAU (SELECT uniquement)
--- Prefixe APPLI_GLPI. obligatoire car AUDITEUR_PAU a son propre schema
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC08 : Audit de Conformité - Lecture Pau depuis Cergy (Lecture Seule)
+-- Utilisation du DBLink Restreint DBLINK_PAU_RO (User AUDITEUR_PAU)
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC08 : Audit de Conformite - Lecture Pau depuis Cergy ---
 
@@ -276,10 +281,10 @@ WHERE  ROWNUM <= 5
 ORDER BY log_date DESC;
 
 
--- =============================================================================
--- UC09 : Continuite Pau - Pau reste operationnel sans Cergy
--- Architecture BDDR : donnees locales autonomes sur Pau
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC09 : Continuité Pau - Autonomie du site distant si Cergy est Down
+-- Architecture BDDR : Preuve de la présence des tables de base sur Pau
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC09 : Continuite Pau - Autonomie locale ---
 
@@ -296,9 +301,10 @@ END;
 /
 
 
--- =============================================================================
--- UC10 : Analyse de Performance - EXPLAIN PLAN comparatifs
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- UC10 : Analyse de Performance & Benchmarks comparatifs
+-- Plan d'exécution (Index, Cluster, FBI) + Temps de réponse
+-- -----------------------------------------------------------------------------
 PROMPT
 PROMPT --- UC10 : Analyse de Performance ---
 
@@ -325,7 +331,7 @@ EXPLAIN PLAN FOR
   SELECT computer_id FROM CYT_COMPUTERS WHERE UPPER(serial) = UPPER('SN-CY-00001');
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(FORMAT => 'BASIC +COST'));
 
-PROMPT T05 : Local vs DBLink vs MV snapshot
+PROMPT T05 : Bench Local vs DBLink vs MV Snapshot
 DECLARE
   v_t0 NUMBER; v_t1 NUMBER; v_cnt NUMBER;
 BEGIN
@@ -362,6 +368,7 @@ BEGIN
 END;
 /
 
+-- Test final des fonctions de comptage globales
 SELECT F_COUNT_ASSETS('CERGY')            AS total_cergy,
        F_COUNT_ASSETS('CERGY','ACTIF')    AS actifs_cergy,
        F_COUNT_ASSETS('CERGY','EN_STOCK') AS stock_cergy

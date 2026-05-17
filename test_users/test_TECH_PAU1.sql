@@ -1,10 +1,8 @@
--- =============================================================================
--- CONNEXION : TECH_PAU1 / Tech1_Pau_2026!
--- PORT      : localhost:1522 (oracle_pau)
--- ROLE      : ROLE_TECH_PAU
--- OBJECTIF  : Démonstration droits technicien site Pau
--- LANCER    : @test_users/test_TECH_PAU1.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Connexion : TECH_PAU1 / Tech1_Pau_2026! (localhost:1522 - oracle_pau)
+-- Rôle      : ROLE_TECH_PAU
+-- Objectif  : Démonstration des privilèges du technicien sur le site de Pau
+-- -----------------------------------------------------------------------------
 SET SERVEROUTPUT ON;
 SET LINESIZE 120;
 SET PAGESIZE 20;
@@ -13,7 +11,7 @@ PROMPT ================================================
 PROMPT  TECH_PAU1 -- Role : ROLE_TECH_PAU (site Pau)
 PROMPT ================================================
 
--- ── CE QU'IL PEUT FAIRE ──────────────────────────────────────────────────────
+-- 1. Privilèges locaux (Actions autorisées)
 PROMPT
 PROMPT [OK] SELECT PC Pau (autonome) :
 SELECT computer_id, computer_name, status
@@ -41,7 +39,7 @@ SELECT computer_id, computer_name, status
 FROM   APPLI_GLPI.CYT_COMPUTERS
 WHERE  computer_id=(SELECT MIN(computer_id) FROM APPLI_GLPI.CYT_COMPUTERS);
 
--- Remise en etat
+-- Rétablissement de l'état initial pour laisser l'environnement propre
 UPDATE APPLI_GLPI.CYT_COMPUTERS SET status='ACTIF'
 WHERE  computer_id=(SELECT MIN(computer_id) FROM APPLI_GLPI.CYT_COMPUTERS);
 COMMIT;
@@ -52,7 +50,7 @@ PROMPT [OK] SELECT utilisateurs Pau :
 SELECT user_id, login, is_active
 FROM   APPLI_GLPI.CYT_USERS WHERE ROWNUM <= 3;
 
--- ── CE QU'IL NE PEUT PAS FAIRE ───────────────────────────────────────────────
+-- 2. Tests de sécurité (Actions interdites)
 PROMPT
 PROMPT [INTERDIT] DROP TABLE -> ORA-01031 attendu :
 BEGIN

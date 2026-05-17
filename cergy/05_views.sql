@@ -1,18 +1,13 @@
--- =============================================================================
--- FICHIER  : cergy/05_views.sql
--- INSTANCE : cergy_db (Lead)
--- NOTION   : Vues simples + Vue matérialisée
--- NOTE     : Les vues fédérées (via DBLink) sont dans 07_views_federated.sql
---            car elles dépendent du DBLink créé dans 06_dblinks.sql
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- Fichier  : cergy/05_views.sql
+-- Instance : cergy_db (Lead)
+-- Notion   : Vues simples + Vue matérialisée
+-- Note     : Les vues fédérées (via DBLink) sont déportées dans le script 07
+-- -----------------------------------------------------------------------------
 
--- =============================================================================
--- 1. V_COMPUTERS_CERGY
---    Vue d'inventaire local Cergy — UC01
---    Encapsule la jointure entre CYT_COMPUTERS, CYT_LOCATIONS,
---    CYT_MANUFACTURERS, CYT_COMPUTER_MODELS, CYT_COMPUTER_TYPES
---    Utilisée par ROLE_TECH_CERGY au quotidien
--- =============================================================================
+-- 1. V_COMPUTERS_CERGY : Inventaire local Cergy (UC01)
+-- Récupère les PC avec leur loc, modèle et utilisateur attribué.
+-- Utilisé au quotidien par le rôle ROLE_TECH_CERGY.
 CREATE OR REPLACE VIEW V_COMPUTERS_CERGY AS
 SELECT
   c.computer_id,
@@ -29,7 +24,7 @@ SELECT
   m.manufacturer_name,
   mo.model_name,
   t.type_name,
-  -- Utilisateur affecté
+  -- User info
   u.login           AS user_login,
   u.realname        AS user_name
 FROM   CYT_COMPUTERS c
@@ -42,43 +37,38 @@ WHERE  c.entity_id  = (SELECT entity_id FROM CYT_ENTITIES WHERE site_code = 'CER
 AND    c.is_deleted = 0;
 
 
--- =============================================================================
--- 2. V_NETWORK_MAPPING
---    Vue de diagnostic réseau — UC04
---    Répond à : "Le PC X est branché sur quel port de quel switch ?"
---    Encapsule la jointure en 6 tables.
---    Le cluster CLU_NETWORK optimise le JOIN NETWORKPORTS ↔ PORT_LINKS
--- =============================================================================
+-- 2. V_NETWORK_MAPPING : Diagnostic réseau (UC04)
+-- Mapping complet PC ↔ Switch ↔ VLAN ↔ Site.
+-- Le cluster CLU_NETWORK optimise la jointure critique entre NETWORKPORTS et PORT_LINKS.
 CREATE OR REPLACE VIEW V_NETWORK_MAPPING AS
 SELECT
-  -- PC
+  -- PC & Port de départ
   c.computer_id,
   c.computer_name    AS pc_name,
   c.serial           AS pc_serial,
   c.status           AS pc_status,
-  -- Port du PC
   np_pc.port_id      AS pc_port_id,
   np_pc.port_name    AS pc_port_name,
   np_pc.mac_address  AS pc_mac,
+  
   -- Liaison physique
   pl.link_id,
-  -- Port du switch
+  
+  -- Switch & Port d'arrivée
   np_sw.port_id      AS switch_port_id,
   np_sw.port_name    AS switch_port_name,
   np_sw.logical_number AS switch_port_number,
-  -- Switch
   sw.netequip_id,
   sw.netequip_name   AS switch_name,
   sw.equip_type,
-  -- Localisation du switch (= point de raccordement physique)
+  
+  -- Emplacement physique du switch, VLAN et Site
   l.building,
   l.room,
   l.floor,
-  -- VLAN
   n.network_name     AS vlan_name,
   n.vlan_id,
   n.subnet,
-  -- Site
   e.site_code
 FROM   CYT_COMPUTERS c
   JOIN CYT_NETWORKPORTS np_pc
@@ -101,12 +91,8 @@ FROM   CYT_COMPUTERS c
 WHERE  c.is_deleted = 0;
 
 
--- =============================================================================
--- 3. V_USERS_FULL
---    Vue RH complète — UC02 + UC05
---    Reconstruit la table complète CYT_USERS + CYT_USERS_DETAIL
---    (inverse de la fragmentation verticale, pour consultation profil complet)
--- =============================================================================
+-- 3. V_USERS_FULL : Vue RH globale (UC02 + UC05)
+-- Inverse la fragmentation verticale en recollant le fragment chaud (USERS) et froid (DETAIL).
 CREATE OR REPLACE VIEW V_USERS_FULL AS
 SELECT
   u.user_id,
@@ -116,16 +102,15 @@ SELECT
   u.is_active,
   u.last_login,
   u.date_created,
-  -- Fragment froid
+  -- Données fragment froid
   ud.phone,
   ud.mobile,
   ud.registration_number,
   ud.language,
-  -- Profil et site
+  -- Profil, entité et groupe
   p.profile_name,
   e.site_code,
   e.entity_name,
-  -- Groupe
   g.group_name,
   g.group_code
 FROM   CYT_USERS u
@@ -137,11 +122,8 @@ LEFT JOIN CYT_GROUPS       g  ON g.group_id = gu.group_id
 WHERE  u.is_deleted = 0;
 
 
--- =============================================================================
--- 4. V_AUDIT_RECENT
---    Vue auditeur — UC08
---    Derniers 30 jours d'activité sur toutes les tables
--- =============================================================================
+-- 4. V_AUDIT_RECENT : Logs récents (UC08)
+-- Historique des modifications sur les 30 derniers jours, toutes tables confondues.
 CREATE OR REPLACE VIEW V_AUDIT_RECENT AS
 SELECT
   log_id,
@@ -158,12 +140,9 @@ WHERE  log_date >= SYSDATE - 30
 ORDER BY log_date DESC;
 
 
--- =============================================================================
--- 5. V_COMPUTERS_FULL
---    Reconstruit CYT_COMPUTERS complet (fragment chaud + froid)
---    Utilisée uniquement lors de la consultation détaillée d'un PC
---    (n'est PAS utilisée dans les requêtes d'inventaire courantes — trop large)
--- =============================================================================
+-- 5. V_COMPUTERS_FULL : Fiche PC complète
+-- Fusionne les fragments chaud et froid de CYT_COMPUTERS. 
+-- /!\ Trop lourde pour l'inventaire courant, à réserver aux consultations de fiches détaillées.
 CREATE OR REPLACE VIEW V_COMPUTERS_FULL AS
 SELECT
   c.*,
@@ -178,19 +157,16 @@ LEFT JOIN CYT_COMPUTERS_DETAIL cd ON cd.computer_id = c.computer_id
 WHERE  c.is_deleted = 0;
 
 
--- =============================================================================
--- 6. MV_INVENTORY_GLOBAL — Vue matérialisée
---    Snapshot de l'inventaire global consolidé (Cergy + Pau via DBLink)
---    Refresh complet chaque nuit → le DSI interroge localement sans
---    déclencher une requête distante à chaque fois (UC03)
---    DÉPEND du DBLink → créé dans 07_views_federated.sql
---    (commenté ici pour référence, décommenté après création du DBLink)
--- =============================================================================
+-- 6. MV_INVENTORY_GLOBAL : Vue matérialisée (UC03)
+-- Snapshot de l'inventaire consolidé Cergy + Pau (via DBLink).
+-- Refresh complet automatique toutes les nuits à 2h pour éviter de spammer le lien distant.
+-- Dépend du DBLink -> Laisser commenté tant que le script 07 n'a pas tourné.
+-- -----------------------------------------------------------------------------
 -- CREATE MATERIALIZED VIEW MV_INVENTORY_GLOBAL
 --   BUILD IMMEDIATE
 --   REFRESH COMPLETE
 --   START WITH SYSDATE
---   NEXT TRUNC(SYSDATE + 1) + 2/24   -- refresh chaque nuit à 2h
+--   NEXT TRUNC(SYSDATE + 1) + 2/24
 -- AS
 --   SELECT c.computer_id, c.serial, c.computer_name,
 --          c.status, c.date_created, 'CERGY' AS site
@@ -202,5 +178,5 @@ WHERE  c.is_deleted = 0;
 --   FROM   CYT_COMPUTERS@DBLINK_PAU p
 --   WHERE  p.is_deleted = 0;
 
--- Vérification
+-- Check rapide des vues créées
 SELECT view_name FROM user_views WHERE view_name LIKE 'V_%' ORDER BY view_name;
