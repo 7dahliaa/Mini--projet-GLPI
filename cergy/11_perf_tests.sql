@@ -1,8 +1,5 @@
--- =============================================================================
--- FICHIER  : cergy/11_perf_tests.sql
--- NOTION   : Tests de performance avec differences visibles
--- CONNEXION: APPLI_GLPI
--- =============================================================================
+-- notion   : Test de performance avec difference visible
+-- connecxion: APPLI_GLPI
 SET SERVEROUTPUT ON SIZE 1000000;
 SET LINESIZE 120;
 SET PAGESIZE 50;
@@ -11,12 +8,11 @@ PROMPT ================================================================
 PROMPT  TESTS DE PERFORMANCE - Architecture CYT Oracle Repartie
 PROMPT ================================================================
 
--- =============================================================================
 -- T01 : Index composite IDX_COMP_STATUS_ENTITY
 -- Requete selective : statut rare (HORS_SERVICE ~5% des donnees)
 -- SANS index : TABLE ACCESS FULL (hint FULL)
 -- AVEC index : INDEX RANGE SCAN
--- =============================================================================
+
 PROMPT
 PROMPT === T01 : Index composite IDX_COMP_STATUS_ENTITY ===
 PROMPT Note : requete sur statut rare (HORS_SERVICE ~5%) pour forcer l index
@@ -178,9 +174,8 @@ EXPLAIN PLAN FOR
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(FORMAT=>'BASIC +COST'));
 
 
--- =============================================================================
 -- T05 : DBLink vs MV_INVENTORY_GLOBAL vs local
--- =============================================================================
+
 PROMPT
 PROMPT === T05 : Local vs DBLink vs MV snapshot ===
 
@@ -205,11 +200,9 @@ BEGIN
 END;
 /
 
-
--- =============================================================================
 -- T06 : Fragmentation verticale
 -- Comparer lecture fragment chaud vs vue complete (JOIN froid)
--- =============================================================================
+
 PROMPT
 PROMPT === T06 : Fragmentation verticale chaud vs complet ===
 
@@ -246,10 +239,9 @@ EXPLAIN PLAN FOR
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(FORMAT=>'BASIC +COST'));
 
 
--- =============================================================================
 -- T07 : Trigger TRG_AUDIT_COMPUTERS
 -- Mesurer le cout du trigger sur les UPDATE
--- =============================================================================
+
 PROMPT
 PROMPT === T07 : Overhead trigger TRG_AUDIT_COMPUTERS ===
 

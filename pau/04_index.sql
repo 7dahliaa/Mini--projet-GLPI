@@ -1,7 +1,4 @@
--- =============================================================================
--- FICHIER  : pau/04_index.sql
--- INSTANCE : pau_db (Spoke) — mêmes index que Cergy, tablespaces Pau
--- =============================================================================
+-- instance : pau_db (Spoke) — mêmes index que Cergy, tablespaces Pau
 
 CREATE INDEX IDX_COMP_ENTITY        ON CYT_COMPUTERS(entity_id)              TABLESPACE TS_PAU_IDX;
 CREATE INDEX IDX_COMP_STATUS_ENTITY ON CYT_COMPUTERS(entity_id, status)      TABLESPACE TS_PAU_IDX;
@@ -16,6 +13,7 @@ CREATE INDEX IDX_IP_ITEMS           ON CYT_IPADDRESSES(items_id, item_type)   TA
 CREATE INDEX IDX_AUDIT_DATE         ON CYT_AUDIT_LOG(log_date, entity_id)     TABLESPACE TS_PAU_AUDIT;
 CREATE INDEX IDX_AUDIT_TABLE_OP     ON CYT_AUDIT_LOG(table_name, operation)   TABLESPACE TS_PAU_AUDIT;
 CREATE INDEX IDX_GU_USER            ON CYT_GROUPS_USERS(user_id)              TABLESPACE TS_PAU_IDX;
+
 
 SELECT index_name, table_name, index_type, uniqueness, tablespace_name
 FROM   user_indexes

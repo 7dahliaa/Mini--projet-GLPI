@@ -1,11 +1,10 @@
--- =============================================================================
--- FICHIER  : cergy/04_index.sql
+
 -- INSTANCE : cergy_db (Lead)
 -- NOTION   : Index B-TREE, composites, function-based
 -- NOTE     : L'index du cluster (IDX_CLU_NETWORK) est créé dans 03_schema_tables.sql
 --            Les index des PK et UNIQUE sont créés avec les contraintes (03_schema)
 --            Ce fichier crée UNIQUEMENT les index supplémentaires de performance
--- =============================================================================
+
 
 -- -----------------------------------------------------------------------------
 -- CYT_COMPUTERS
