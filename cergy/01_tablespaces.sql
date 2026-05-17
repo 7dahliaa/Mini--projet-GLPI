@@ -1,8 +1,8 @@
--- =============================================================================
+
 -- FICHIER  : cergy/01_tablespaces.sql
 -- INSTANCE : oracle_cergy (gvenzl/oracle-free)
--- NOTE     : Chemin datafiles détecté automatiquement depuis DBA_DATA_FILES
--- =============================================================================
+
+
 SET SERVEROUTPUT ON;
 
 DECLARE

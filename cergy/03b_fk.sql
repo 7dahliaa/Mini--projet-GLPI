@@ -1,5 +1,4 @@
--- cergy/03b_fk.sql — Contraintes FK
--- Exécuté après 03_schema_tables.sql (toutes les tables existent)
+
 WHENEVER SQLERROR CONTINUE;
 
 ALTER TABLE CYT_LOCATIONS ADD CONSTRAINT FK_LOC_ENTITY
