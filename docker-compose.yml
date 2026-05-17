@@ -1,26 +1,32 @@
+# Fichier docker-compose pour lancer nos deux bases de données d'un coup
 services:
-  # Site Cergy - Port externe 1523
+  # Premier conteneur : le serveur de base de données pour le site principal (Cergy)
   db_cergy:
     image: gvenzl/oracle-free:latest
     container_name: oracle_cergy
     ports:
+      # Je mappe le port standard d'Oracle (1521) vers le port 1523 de ma machine
       - "1523:1521"
     environment:
+      # On définit le mot de passe administrateur par défaut pour l'installation
       - ORACLE_PASSWORD=OracleHomeUser1
     networks:
       - cine_net
 
-  # Site Pau - Port externe 1522
+  # Deuxième conteneur : le serveur pour le site de Pau
   db_pau:
     image: gvenzl/oracle-free:latest
     container_name: oracle_pau
     ports:
+      # J'utilise le port 1522 sur ma machine pour éviter un conflit avec Cergy
       - "1522:1521"
     environment:
       - ORACLE_PASSWORD=OracleHomeUser1
     networks:
+      # On le met exactement sur le même réseau que Cergy pour que nos DBLinks fonctionnent 
       - cine_net
 
+# Configuration du réseau virtuel pour faire communiquer nos conteneurs
 networks:
   cine_net:
     driver: bridge
