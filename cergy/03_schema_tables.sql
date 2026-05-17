@@ -585,7 +585,7 @@ CREATE TABLE CYT_NETEQUIP (
 -- =============================================================================
 -- 17. CYT_IPADDRESSES
 --     Source : glpi_ipaddresses
---     Simplifié : retrait de binary_0..3 (représentation interne MySQL GLPI)
+--     Simplifié : retrait de binary_0..3 
 --     On stocke directement l'IP lisible humainement
 -- =============================================================================
 CREATE TABLE CYT_IPADDRESSES (
@@ -672,7 +672,3 @@ CREATE TABLE CYT_AUDIT_LOG (
 ) TABLESPACE TS_AUDIT;
 
 
--- =============================================================================
--- GRANTs : voir cergy/02b_grants.sql (execute par system apres ce fichier)
--- Les GRANTs sont dans un fichier separe car ils necessitent le prefixe
--- APPLI_GLPI. et doivent etre executes par system, pas par APPLI_GLPI.
